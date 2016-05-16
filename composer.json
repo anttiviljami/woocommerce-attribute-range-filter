@@ -1,0 +1,13 @@
+{
+    "name": "anttiviljami/woocommerce-attribute-range-filter",
+    "description": "Filter a range of numeric product attributes with a range slider",
+    "type": "wordpress-plugin",
+    "license": "GPLv3",
+    "authors": [
+        {
+            "name": "Antti Kuosmanen",
+            "email": "antti@seravo.fi"
+        }
+    ],
+    "require": {}
+}
