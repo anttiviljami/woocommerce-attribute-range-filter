@@ -27,6 +27,8 @@ if ( ! class_exists('WooCommerce_Attribute_Range_filter') ) :
 
 class WooCommerce_Attribute_Range_filter {
   public static $instance;
+  public $maxamps;
+  public $productquery;
 
   public static function init() {
     if ( is_null( self::$instance ) ) {
@@ -42,8 +44,16 @@ class WooCommerce_Attribute_Range_filter {
     // include jquery-ui and jquery-ui-slider in the theme
     add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_scripts' ] );
 
+    // filter the woocommerce main query
+    add_action( 'woocommerce_product_query', [ $this, 'filter_by_current_range' ] );
+
+    // hide empty categories according to the filter
+    add_filter('woocommerce_product_subcategories_args', [ $this, 'filter_subcategories' ]);
+
     // load textdomain for translations
     add_action( 'plugins_loaded', [ $this, 'load_our_textdomain' ] );
+
+    $this->maxamps = 0;
   }
 
   public function register_widgets() {
@@ -67,6 +77,83 @@ class WooCommerce_Attribute_Range_filter {
    */
   public static function load_our_textdomain() {
     load_plugin_textdomain( 'wc-attr-range-filter', false, dirname( plugin_basename(__FILE__) ) . '/lang/' );
+  }
+
+  /**
+   * Filter the products
+   */
+  public function filter_by_current_range( $query ) {
+    $this->productquery = $query;
+    $query->set('tax_query', $this->get_tax_query());
+  }
+
+  public function get_tax_query() {
+    $tax_query = [];
+
+    if( isset( $_GET['maxamps'] ) && isset( $_GET['minamps'] ) ) {
+
+      $terms = get_terms([
+        'taxonomy' => 'pa_stromstyrke',
+      ]);
+
+      $amps = [];
+      foreach( $terms as $term ) {
+        if( (int) $term->slug <= (int) $_GET['maxamps'] && (int) $term->slug >= (int) $_GET['minamps'] ) {
+          $amps[] = $term->term_id;
+        }
+      }
+
+      $tax_query = [
+        'relation' => 'AND',
+        [
+          'taxonomy' => 'pa_stromstyrke',
+          'terms' => $amps,
+          'operator' => 'IN',
+        ],
+/*        [
+          'taxonomy' => 'pa_stromstyrke',
+          'operator' => 'NOT EXISTS',
+        ],*/
+      ];
+    }
+    if( isset( $this->productquery->tax_query ) ) {
+      $tax_query = array_merge( $this->productquery->tax_query->queries, $tax_query );
+    }
+    return $tax_query;
+  }
+
+  public function filter_subcategories( $cat_args ){
+    $products = new WP_Query([
+      'post_type' => 'product',
+      'posts_per_page' => -1,
+      'meta_query' => [
+        [
+          'key' => '_visibility',
+          'value' => [
+            'visible',
+            'catalog',
+          ],
+          'compare' => 'IN',
+        ],
+      ],
+      'tax_query' => $this->get_tax_query(),
+    ]);
+    $cat_ids = [];
+    foreach( $products->posts as $product ) {
+      $cats = get_the_terms( $product->ID, 'product_cat' );
+      foreach( $cats as $cat ) {
+        $cat_ids[] = $cat->term_id;
+      }
+      $amps = get_the_terms( $product->ID, 'pa_stromstyrke' );
+      foreach( $amps as $amp ) {
+        if( (int) $amp->slug > $this->maxamps ) {
+          $this->maxamps = (int) $amp->slug;
+        }
+      }
+    }
+    $cat_ids = array_unique( $cat_ids );
+    $cat_args['include'] = $cat_ids;
+    return $cat_args;
   }
 }
 

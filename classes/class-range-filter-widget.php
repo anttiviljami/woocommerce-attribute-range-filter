@@ -22,15 +22,14 @@ class Range_Filter_Widget extends WP_Widget {
    * @param array $instance Saved values from database.
    */
   public function widget( $args, $instance ) {
-    echo $args['before_widget'];
-    if ( ! empty( $instance['title'] ) ) {
-      echo $args['before_title'] . apply_filters( 'widget_title', $instance['title'] ). $args['after_title'];
-    }
+    $maxamps = WooCommerce_Attribute_Range_filter::$instance->maxamps;
+    if( $maxamps ) {
+      echo $args['before_widget'];
+      if ( ! empty( $instance['title'] ) ) {
+        echo $args['before_title'] . apply_filters( 'widget_title', $instance['title'] ). $args['after_title'];
+      }
 ?>
-<p>
-  <label for="amount">STRØMSTYRKE</label>
-  <input type="text" id="amount" readonly>
-</p>
+<p><input type="text" id="amount" readonly></p>
 
 <div id="slider-range"></div>
 <script>
@@ -39,10 +38,20 @@ class Range_Filter_Widget extends WP_Widget {
     $( "#slider-range" ).slider({
       range: true,
       min: 0,
-      max: 500,
-      values: [ 75, 300 ],
+      max: <?php echo $maxamps; ?>,
+      step: 10,
+      values: [ 0, <?php echo $maxamps; ?> ],
       slide: function( event, ui ) {
         $( "#amount" ).val( ui.values[ 0 ] + " A - " + ui.values[ 1 ] + " A" );
+      },
+      stop: function( event, ui ) {
+        var newlocation = $.extend({}, window.location);
+        newlocation.search = "?minamps=" + ui.values[ 0 ] + "&maxamps=" + ui.values[ 1 ];
+        console.log(newlocation);
+        $('.products').addClass('loading');
+        $('#main').load( newlocation.pathname + newlocation.search + ' #main', function(e) {
+          //$('.products').removeClass('loading');
+        } );
       }
     });
     $( "#amount" ).val( $( "#slider-range" ).slider( "values", 0 ) +
@@ -50,8 +59,22 @@ class Range_Filter_Widget extends WP_Widget {
   });
 })(jQuery);
 </script>
+<style>
+.products { position: relative; }
+.products.loading::after {
+  display: block;
+  content: " ";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255,255,255,.5);
+}
+</style>
 <?php
-    echo $args['after_widget'];
+      echo $args['after_widget'];
+    }
   }
 
   /**
