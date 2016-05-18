@@ -153,6 +153,22 @@ class WooCommerce_Attribute_Range_filter {
     }
     $cat_ids = array_unique( $cat_ids );
     $cat_args['include'] = $cat_ids;
+    if( isset( $_GET['maxamps'] ) && 0 === $cat_args['parent'] ) {
+      unset($cat_args['parent']);
+      $parents = get_terms( [
+        'taxonomy' => 'product_cat',
+        'parent' => 0,
+        'hierarchical' => 1,
+      ] );
+
+      foreach( $parents as $parent ) {
+        $cat_args['exclude'][] = $parent->term_id;
+        $parentid = array_search( $parent->term_id, $cat_args['include'] );
+        unset( $cat_args['include'][$parentid] );
+      }
+    }
+    /*print_r( $cat_args );
+    wp_die();*/
     return $cat_args;
   }
 }
